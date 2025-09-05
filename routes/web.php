@@ -37,7 +37,7 @@ Route::delete('/systems/{system}', [SystemController::class, 'destroy'])
     ->middleware(['auth'])
     ->name('systems.destroy');
 
-
+Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 Route::get('/reports', [ReportController::class, 'index'])
     ->middleware(['auth'])
     ->name('reports');

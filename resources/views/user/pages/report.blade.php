@@ -31,7 +31,16 @@
                 });
         }
     }" class="space-y-6">
-        <div class="bg-white p-6 rounded-xl border border-slate-200">
+        <div x-data="{
+            system_id: '{{ request('system_id', '') }}',
+            status: '{{ request('status', '') }}',
+            get exportUrl() {
+                const params = new URLSearchParams();
+                if (this.system_id) params.append('system_id', this.system_id);
+                if (this.status) params.append('status', this.status);
+                return `{{ route('reports.export') }}?${params.toString()}`;
+            }
+        }" class="bg-white p-6 rounded-xl border border-slate-200">
             <h3 class="text-lg font-semibold text-slate-800 mb-4">Filter Laporan</h3>
             <form action="{{ route('reports') }}" method="GET">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -66,11 +75,22 @@
                     </div>
 
                     {{-- Tombol Aksi --}}
-                    <div class="flex items-end space-x-2">
+                    <div class="flex items-end space-x-2 col-span-1 md:col-span-2">
                         <button type="submit"
                             class="w-full justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Filter</button>
                         <a href="{{ route('reports') }}"
                             class="w-full text-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-semibold">Reset</a>
+                        {{-- TOMBOL EXPORT BARU --}}
+                        <a :href="exportUrl"
+                            class="w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                </path>
+                            </svg>
+                            <span>Export</span>
+                        </a>
                     </div>
                 </div>
             </form>

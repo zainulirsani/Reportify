@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ReportService; // <-- Import ReportService
 use App\Services\SystemService; // <-- Import SystemService
+use App\Exports\ReportsExport; // <-- Import Export Class
+use Maatwebsite\Excel\Facades\Excel; // <-- Import Facade Excel
 
 class ReportController extends Controller
 {
@@ -64,5 +66,18 @@ class ReportController extends Controller
             
             return back()->with('error', 'Terjadi kesalahan saat mencoba memperbarui laporan.');
         }
+    }
+
+    public function export(Request $request)
+    {
+        // Ambil filter dari request
+        $system_id = $request->query('system_id');
+        $status = $request->query('status');
+
+        $fileName = 'reports_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
+
+        // Panggil package untuk men-download file Excel, 
+        // sambil mengirimkan parameter filter ke Export Class
+        return Excel::download(new ReportsExport($system_id, $status), $fileName);
     }
 }
