@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Services;
+use Carbon\Carbon;
 
 use App\Models\User;
 use App\Models\Report;
@@ -17,24 +18,32 @@ class ReportService
      * @return LengthAwarePaginator
      */
     public function getFilteredReportsForUser(User $user, Request $request): LengthAwarePaginator
-    {
-        // Mulai query dengan mengambil semua laporan milik user yang sedang login
-        // 'with('system')' (Eager Loading) membuat query lebih efisien
-        $query = $user->reports()->with('system');
+{
+    $query = $user->reports()->with('system');
 
-        // Terapkan filter berdasarkan status jika ada di request
-        $query->when($request->status, function ($q, $status) {
-            return $q->where('status', $status);
-        });
+    $query->when($request->status, fn ($q, $status) => $q->where('status', $status));
+    $query->when($request->system_id, fn ($q, $system_id) => $q->where('system_id', $system_id));
 
-        // Terapkan filter berdasarkan sistem/proyek jika ada di request
-        $query->when($request->system_id, function ($q, $system_id) {
-            return $q->where('system_id', $system_id);
-        });
+    // TAMBAHKAN LOGIKA FILTER TANGGAL YANG SAMA DI SINI
+    $query->when($request->date_filter, function ($q, $filter) use ($request) {
+        if ($filter === 'week') {
+            return $q->whereBetween('reports.created_at', [now()->startOfWeek(), now()->endOfWeek()]);
+        }
+        if ($filter === 'month') {
+            return $q->whereBetween('reports.created_at', [now()->startOfMonth(), now()->endOfMonth()]);
+        }
+        if ($filter === 'year') {
+            return $q->whereBetween('reports.created_at', [now()->startOfYear(), now()->endOfYear()]);
+        }
+        if ($filter === 'custom' && $request->start_date && $request->end_date) {
+            $startDate = Carbon::parse($request->start_date)->startOfDay();
+            $endDate = Carbon::parse($request->end_date)->endOfDay();
+            return $q->whereBetween('reports.created_at', [$startDate, $endDate]);
+        }
+    });
 
-        // Ambil hasil akhir dengan paginasi, urutkan berdasarkan yang terbaru
-        return $query->latest('completed_at')->paginate(15);
-    }
+    return $query->latest('reports.created_at')->paginate(15);
+}
     public function updateReport(Report $report, array $validatedData): bool
     {
         // Jika status diubah menjadi 'completed', catat waktu selesainya.

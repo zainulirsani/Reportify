@@ -34,10 +34,20 @@
         <div x-data="{
             system_id: '{{ request('system_id', '') }}',
             status: '{{ request('status', '') }}',
+            date_filter: '{{ request('date_filter', '') }}',
+            start_date: '{{ request('start_date', '') }}',
+            end_date: '{{ request('end_date', '') }}',
             get exportUrl() {
                 const params = new URLSearchParams();
                 if (this.system_id) params.append('system_id', this.system_id);
                 if (this.status) params.append('status', this.status);
+                if (this.date_filter) {
+                    params.append('date_filter', this.date_filter);
+                    if (this.date_filter === 'custom') {
+                        if (this.start_date) params.append('start_date', this.start_date);
+                        if (this.end_date) params.append('end_date', this.end_date);
+                    }
+                }
                 return `{{ route('reports.export') }}?${params.toString()}`;
             }
         }" class="bg-white p-6 rounded-xl border border-slate-200">
@@ -65,7 +75,8 @@
                         <select name="status" id="status"
                             class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
                             <option value="">Semua Status</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed
+                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>
+                                Completed
                             </option>
                             <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In
                                 Progress</option>
@@ -73,7 +84,33 @@
                             </option>
                         </select>
                     </div>
-
+                    <div class="col-span-1">
+                        <label for="date_filter" class="block text-sm font-medium text-slate-700">Periode Waktu</label>
+                        <select name="date_filter" id="date_filter" x-model="date_filter"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                            <option value="">Semua Waktu</option>
+                            <option value="week">Minggu Ini</option>
+                            <option value="month">Bulan Ini</option>
+                            <option value="year">Tahun Ini</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    {{-- Filter Tanggal (Custom Range) --}}
+                    <div x-show="date_filter === 'custom'" x-transition
+                        class="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="start_date" class="block text-sm font-medium text-slate-700">Dari
+                                Tanggal</label>
+                            <input type="date" name="start_date" id="start_date" x-model="start_date"
+                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                        </div>
+                        <div>
+                            <label for="end_date" class="block text-sm font-medium text-slate-700">Sampai
+                                Tanggal</label>
+                            <input type="date" name="end_date" id="end_date" x-model="end_date"
+                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                        </div>
+                    </div>
                     {{-- Tombol Aksi --}}
                     <div class="flex items-end space-x-2 col-span-1 md:col-span-2">
                         <button type="submit"
@@ -189,7 +226,8 @@
                                     <div>
                                         <label for="title" class="block text-sm font-medium text-slate-700">Judul
                                             Task</label>
-                                        <input type="text" name="title" id="title" x-model="reportData.title"
+                                        <input type="text" name="title" id="title"
+                                            x-model="reportData.title"
                                             class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
                                     </div>
                                     <div>

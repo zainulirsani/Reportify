@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -60,24 +61,25 @@ class ReportController extends Controller
         try {
             $this->reportService->updateReport($report, $validatedData);
             return redirect()->route('reports')->with('success', 'Laporan berhasil diperbarui!');
-
         } catch (\Exception $e) {
             Log::error("Gagal mengupdate laporan (ID: {$report->id}): " . $e->getMessage());
-            
+
             return back()->with('error', 'Terjadi kesalahan saat mencoba memperbarui laporan.');
         }
     }
 
     public function export(Request $request)
     {
-        // Ambil filter dari request
+        // Ambil semua filter dari request
         $system_id = $request->query('system_id');
         $status = $request->query('status');
+        $date_filter = $request->query('date_filter');
+        $start_date = $request->query('start_date');
+        $end_date = $request->query('end_date');
 
         $fileName = 'reports_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-        // Panggil package untuk men-download file Excel, 
-        // sambil mengirimkan parameter filter ke Export Class
-        return Excel::download(new ReportsExport($system_id, $status), $fileName);
+        // Kirim semua parameter filter ke Export Class
+        return Excel::download(new ReportsExport($system_id, $status, $date_filter, $start_date, $end_date), $fileName);
     }
 }
