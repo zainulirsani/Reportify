@@ -1,0 +1,50 @@
+# Nama workflow yang akan muncul di tab Actions
+name: Generate Daily Work Report
+
+# Pemicu: Kapan workflow ini akan berjalan
+on:
+  # Berjalan setiap kali ada 'push' ke branch 'main'
+  push:
+    branches:
+      - main
+      # Ganti 'main' dengan 'master' atau 'develop' jika kamu menggunakan branch lain
+
+jobs:
+  # Nama job yang akan berjalan
+  build_and_send_report:
+    # Menggunakan OS Ubuntu versi terbaru dari GitHub
+    runs-on: ubuntu-latest
+
+    # Langkah-langkah yang akan dieksekusi
+    steps:
+    # 1. Mengambil (checkout) kodemu agar bisa diakses oleh workflow
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2 # Ambil 2 commit terakhir agar bisa membandingkan perubahan
+
+    # 2. Mengumpulkan detail dari commit terakhir
+    - name: Get commit details
+      id: commit_details
+      run: |
+        echo "COMMIT_MESSAGE=$(git log -1 --pretty=%B | tr -d '\n' | tr -d '\r' | sed 's/"/\\"/g')" >> $GITHUB_ENV
+        echo "COMMIT_HASH=$(git log -1 --pretty=%H)" >> $GITHUB_ENV
+        echo "AUTHOR_NAME=$(git log -1 --pretty=%an)" >> $GITHUB_ENV
+        echo "CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | tr '\n' ',' | sed 's/,$//')" >> $GITHUB_ENV
+
+    # 4. Mengirim data yang sudah dikumpulkan ke API Laravel kita
+    - name: Send data to Laravel App
+      run: |
+        curl -X POST "${{ secrets.LARAVEL_REPORT_ENDPOINT }}" \
+        -H "Content-Type: application/json" \
+        -H "X-Secret-Token: ${{ secrets.GITHUB_WEBHOOK_SECRET }}" \
+        -d @- << EOF
+        {
+          "repository": "${{ github.repository }}",
+          "branch": "${{ github.ref_name }}",
+          "commit_hash": "${{ env.COMMIT_HASH }}",
+          "commit_message": "${{ env.COMMIT_MESSAGE }}",
+          "author_name": "${{ env.AUTHOR_NAME }}",
+          "changed_files": "${{ env.CHANGED_FILES }}"
+        }
+        EOF
