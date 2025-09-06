@@ -35,9 +35,9 @@ class SystemController extends Controller
         abort_if($system->user_id !== auth()->id(), 403);
 
         try {
-            $this->systemService->syncCommitsFromGitHub($system);
+            $newCommitsCount = $this->systemService->syncCommitsFromGitHub($system, auth()->user());
             // Ganti pesan suksesnya
-            return redirect()->route('systems')->with('success', "Sinkronisasi untuk sistem '{$system->name}' telah dimulai. Laporan akan muncul dalam beberapa saat.");
+            return redirect()->route('systems')->with('success', "Sinkronisasi selesai! {$newCommitsCount} laporan baru untuk Anda berhasil ditambahkan.");
         } catch (\Exception $e) {
             Log::error('Gagal memulai sinkronisasi: ' . $e->getMessage());
             return redirect()->route('systems')->with('error', 'Gagal memulai proses sinkronisasi.');

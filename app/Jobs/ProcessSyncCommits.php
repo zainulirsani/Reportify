@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Jobs;
-
+use App\Models\User;
 use App\Models\Report;
 use App\Models\System;
 use App\Services\AIService;
@@ -19,13 +19,14 @@ class ProcessSyncCommits implements ShouldQueue
 
     // Properti untuk menyimpan sistem yang akan diproses
     protected System $system;
-
+    protected User $user;
     /**
      * Create a new job instance.
      */
-    public function __construct(System $system)
+    public function __construct(System $system, User $user)
     {
         $this->system = $system;
+        $this->user = $user;
     }
 
     /**
@@ -34,7 +35,7 @@ class ProcessSyncCommits implements ShouldQueue
      */
     public function handle(AIService $aiService): void
     {
-        Log::info("Memulai sinkronisasi untuk sistem: {$this->system->name}");
+        Log::info("Memulai sinkronisasi untuk sistem: {$this->system->name} oleh user: {$this->user->email}");
 
         $repoPath = str_replace('https://github.com/', '', $this->system->repository_url);
         $apiUrl = "https://api.github.com/repos/{$repoPath}/commits";
@@ -45,6 +46,7 @@ class ProcessSyncCommits implements ShouldQueue
                     'sha' => $this->system->branch ?? 'main',
                     'since' => now()->startOfDay()->toIso8601String(),
                     'per_page' => 100,
+                    'author' => $this->user->email,
                 ]);
 
             $response->throw(); // Lempar exception jika gagal (4xx atau 5xx)

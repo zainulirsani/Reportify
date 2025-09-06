@@ -73,10 +73,9 @@ class SystemService
     }
 
 
-    public function syncCommitsFromGitHub(System $system)
+    public function syncCommitsFromGitHub(System $system, User $user)
     {
-        // Alih-alih melakukan semua pekerjaan, kita sekarang hanya "mengirim"
-        // tugas ini ke antrian untuk diproses di latar belakang.
-        ProcessSyncCommits::dispatch($system);
+        // Kirim object User bersama dengan System ke dalam Job
+        ProcessSyncCommits::dispatch($system, $user);
     }
 }

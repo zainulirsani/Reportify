@@ -70,10 +70,10 @@
                                @forelse ($recentReports as $report)
                                     <tr>
                                         <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-800">
-                                            {{ $commit->repository }}</td>
+                                            {{ $report->repository }}</td>
                                         <td class="px-6 py-4 whitespace-nowrap text-slate-500">
-                                            {{ Str::limit($commit->message, 50) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">{{ $commit->time }}</td>
+                                            {{ Str::limit($report->message, 50) }}</td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">{{ $report->time }}</td>
                                     </tr>
                                 @empty
                                     <tr>
