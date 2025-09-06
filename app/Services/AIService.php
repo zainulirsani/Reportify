@@ -13,13 +13,22 @@ class AIService
      * Menghasilkan deskripsi DAN potongan kode dari data commit.
      * Mengembalikan array terstruktur.
      */
+
+    private const DIFF_CHARACTER_LIMIT = 15000;
     public function generateReportDetails(string $commitMessage, string $changedFiles, ?string $gitDiff = null): array
     {
         $apiKey = config('services.gemini.api_key');
         if (!$apiKey) {
             throw new \Exception('Gemini API key is not set.');
         }
-
+        if (strlen($gitDiff ?? '') > self::DIFF_CHARACTER_LIMIT) {
+            // JALUR DARURAT: Jika diff terlalu besar, jangan kirim diff-nya.
+            // Buat prompt sederhana yang hanya menggunakan pesan commit.
+            $prompt = $this->createSimplePrompt($commitMessage);
+        } else {
+            // JALUR NORMAL: Jika diff ukurannya wajar, gunakan prompt canggih.
+            $prompt = $this->createAdvancedPrompt($commitMessage, $changedFiles, $gitDiff);
+        }
         $prompt = $this->createAdvancedPrompt($commitMessage, $changedFiles, $gitDiff);
         $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
@@ -74,6 +83,19 @@ class AIService
             $promptText .= "\n\nTidak ada perubahan kode yang diberikan, kembalikan array snippets sebagai array kosong.";
         }
         return $promptText;
-        }
+    }
+    private function createSimplePrompt(string $commitMessage): string
+    {
+        return "Anda adalah seorang asisten developer senior. Perubahan kode untuk commit ini terlalu besar untuk dianalisis. 
+            Tolong buatkan deskripsi laporan pekerjaan singkat dalam format paragraf Bahasa Indonesia HANYA BERDASARKAN PESAN COMMIT berikut.
+
+            KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON YANG VALID SEPERTI CONTOH INI:
+            ```json
+            {
+                \"description\": \"(Tulis deskripsi laporan paragraf di sini berdasarkan pesan commit)\",
+                \"snippets\": []
+            }
+            ```";
+    }
 }
 
