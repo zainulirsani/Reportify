@@ -15,21 +15,28 @@ class AIService
      */
 
     private const DIFF_CHARACTER_LIMIT = 15000;
+    // app/Services/AIService.php
+
     public function generateReportDetails(string $commitMessage, string $changedFiles, ?string $gitDiff = null): array
     {
         $apiKey = config('services.gemini.api_key');
         if (!$apiKey) {
             throw new \Exception('Gemini API key is not set.');
         }
+
+        // =====================================================================
+        // BAGIAN YANG DIPERBAIKI
+        // =====================================================================
         if (strlen($gitDiff ?? '') > self::DIFF_CHARACTER_LIMIT) {
-            // JALUR DARURAT: Jika diff terlalu besar, jangan kirim diff-nya.
-            // Buat prompt sederhana yang hanya menggunakan pesan commit.
+            // JALUR DARURAT: Jika diff terlalu besar, gunakan prompt sederhana.
             $prompt = $this->createSimplePrompt($commitMessage);
         } else {
             // JALUR NORMAL: Jika diff ukurannya wajar, gunakan prompt canggih.
             $prompt = $this->createAdvancedPrompt($commitMessage, $changedFiles, $gitDiff);
         }
-        $prompt = $this->createAdvancedPrompt($commitMessage, $changedFiles, $gitDiff);
+        // Baris yang menimpa $prompt sudah dihapus.
+        // =====================================================================
+
         $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
         $response = Http::withHeaders([
@@ -49,6 +56,13 @@ class AIService
         }
 
         $parsedJson = json_decode($jsonContent, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [
+                'description' => "Analisis AI Gagal (Format Respons Tidak Valid). Pesan Commit: " . $commitMessage,
+                'snippets' => [],
+            ];
+        }
 
         return [
             'description' => $parsedJson['description'] ?? 'Gagal membuat deskripsi otomatis.',
@@ -98,4 +112,3 @@ class AIService
             ```";
     }
 }
-
