@@ -23,6 +23,7 @@ class ReportService
 
     $query->when($request->status, fn ($q, $status) => $q->where('status', $status));
     $query->when($request->system_id, fn ($q, $system_id) => $q->where('system_id', $system_id));
+    $query->when($request->work_type, fn ($q, $work_type) => $q->where('work_type', $work_type)); // <-- TAMBAHKAN INI
 
     // TAMBAHKAN LOGIKA FILTER TANGGAL YANG SAMA DI SINI
     $query->when($request->date_filter, function ($q, $filter) use ($request) {

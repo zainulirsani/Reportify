@@ -2,13 +2,25 @@
 
 namespace App\Services;
 
-use App\Models\System;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use App\Models\System;
+use App\Jobs\ProcessSyncCommits;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class SystemService
 {
+     // 2. Tambahkan properti untuk menampung AIService
+    protected AIService $aiService;
+
+    /**
+     * 3. Suntikkan AIService melalui constructor.
+     * Laravel akan otomatis mengisinya untuk kita.
+     */
+    public function __construct(AIService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
     /**
      * Mengambil semua data sistem milik user dengan paginasi.
      *
@@ -58,5 +70,13 @@ class SystemService
     public function getAllSystemsForUser(User $user): Collection
     {
         return $user->systems()->orderBy('name')->get();
+    }
+
+
+    public function syncCommitsFromGitHub(System $system)
+    {
+        // Alih-alih melakukan semua pekerjaan, kita sekarang hanya "mengirim"
+        // tugas ini ke antrian untuk diproses di latar belakang.
+        ProcessSyncCommits::dispatch($system);
     }
 }

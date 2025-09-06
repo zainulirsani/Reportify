@@ -38,7 +38,7 @@
             this.showPanel = true;
         }
     }" class="space-y-6">
-       
+
         {{-- KONTEN UTAMA HALAMAN (Tabel, dll) --}}
         <div class="flex justify-between items-center">
             <p class="text-slate-500">Daftar semua proyek yang laporannya ingin Anda lacak.</p>
@@ -55,7 +55,7 @@
                 <p>{{ session('success') }}</p>
             </div>
         @endif
-        
+
         @if (session('error'))
             <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
                 class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4" role="alert">
@@ -88,6 +88,10 @@
                                     {{-- Tombol Edit juga memanggil fungsi Alpine.js --}}
                                     <button @click="openEditPanel({{ json_encode($system) }})"
                                         class="text-indigo-600 hover:text-indigo-900">Edit</button>
+                                    <form action="{{ route('systems.sync', $system) }}" method="POST" class="inline">
+                                        @csrf
+                                        <button type="submit" class="text-green-600 hover:text-green-900">Sync</button>
+                                    </form>
                                     <form action="{{ route('systems.destroy', $system) }}" method="POST"
                                         onsubmit="return confirm('Apakah Anda yakin ingin menghapus sistem ini?');"
                                         class="inline">

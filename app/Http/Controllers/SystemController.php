@@ -30,6 +30,19 @@ class SystemController extends Controller
         return view('user.pages.systems.create');
     }
 
+    public function sync(System $system)
+    {
+        abort_if($system->user_id !== auth()->id(), 403);
+
+        try {
+            $this->systemService->syncCommitsFromGitHub($system);
+            // Ganti pesan suksesnya
+            return redirect()->route('systems')->with('success', "Sinkronisasi untuk sistem '{$system->name}' telah dimulai. Laporan akan muncul dalam beberapa saat.");
+        } catch (\Exception $e) {
+            Log::error('Gagal memulai sinkronisasi: ' . $e->getMessage());
+            return redirect()->route('systems')->with('error', 'Gagal memulai proses sinkronisasi.');
+        }
+    }
     public function store(Request $request)
     {
         $validatedData = $request->validate([
@@ -42,11 +55,10 @@ class SystemController extends Controller
             // Jalankan logika utama di dalam blok 'try'
             $this->systemService->createNewSystem($validatedData, auth()->user());
             return redirect()->route('systems')->with('success', 'Sistem baru berhasil ditambahkan!');
-        
         } catch (Exception $e) {
             // Jika terjadi error, tangkap di sini
             Log::error('Gagal menyimpan sistem baru: ' . $e->getMessage());
-            
+
             return back()
                 ->with('error', 'Terjadi kesalahan saat mencoba menyimpan sistem. Silakan coba lagi.')
                 ->withInput(); // withInput() untuk mengembalikan data inputan user ke form
@@ -62,20 +74,19 @@ class SystemController extends Controller
     public function update(Request $request, System $system)
     {
         abort_if($system->user_id !== auth()->user()->id, 403);
-        
+
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'repository_url' => 'required|string|max:255|url',
             'description' => 'nullable|string',
         ]);
-        
+
         try {
             $this->systemService->updateSystem($system, $validatedData);
             return redirect()->route('systems')->with('success', 'Data sistem berhasil diperbarui!');
-
         } catch (Exception $e) {
             Log::error("Gagal mengupdate sistem (ID: {$system->id}): " . $e->getMessage());
-            
+
             return back()
                 ->with('error', 'Terjadi kesalahan saat mencoba memperbarui sistem. Silakan coba lagi.')
                 ->withInput();
@@ -85,14 +96,13 @@ class SystemController extends Controller
     public function destroy(System $system)
     {
         abort_if($system->user_id !== auth()->user()->id, 403);
-        
+
         try {
             $this->systemService->deleteSystem($system);
             return redirect()->route('systems')->with('success', 'Sistem berhasil dihapus!');
-
         } catch (Exception $e) {
             Log::error("Gagal menghapus sistem (ID: {$system->id}): " . $e->getMessage());
-            
+
             return redirect()->route('systems')
                 ->with('error', 'Terjadi kesalahan saat mencoba menghapus sistem. Silakan coba lagi.');
         }

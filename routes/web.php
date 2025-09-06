@@ -37,6 +37,8 @@ Route::delete('/systems/{system}', [SystemController::class, 'destroy'])
     ->middleware(['auth'])
     ->name('systems.destroy');
 
+Route::post('/systems/{system}/sync', [SystemController::class, 'sync'])->name('systems.sync');
+
 Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 Route::get('/reports', [ReportController::class, 'index'])
     ->middleware(['auth'])

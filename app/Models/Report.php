@@ -11,15 +11,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Report extends Model
 {
     use HasFactory;
-    
+
     protected $fillable = [
         'system_id',
         'title',
         'description',
+        'raw_diff',
         'status',
+        'work_type', // <-- Tambahkan ini
         'started_at',
         'completed_at',
-        'row_github_payload',
+        'raw_github_payload',
+        'commit_hash',
     ];
 
     protected $casts = [

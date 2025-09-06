@@ -34,13 +34,15 @@
         <div x-data="{
             system_id: '{{ request('system_id', '') }}',
             status: '{{ request('status', '') }}',
+            work_type: '{{ request('work_type', '') }}',
             date_filter: '{{ request('date_filter', '') }}',
             start_date: '{{ request('start_date', '') }}',
             end_date: '{{ request('end_date', '') }}',
-            get exportUrl() {
+            exportUrl() {
                 const params = new URLSearchParams();
                 if (this.system_id) params.append('system_id', this.system_id);
                 if (this.status) params.append('status', this.status);
+                if (this.work_type) params.append('work_type', this.work_type);
                 if (this.date_filter) {
                     params.append('date_filter', this.date_filter);
                     if (this.date_filter === 'custom') {
@@ -53,38 +55,41 @@
         }" class="bg-white p-6 rounded-xl border border-slate-200">
             <h3 class="text-lg font-semibold text-slate-800 mb-4">Filter Laporan</h3>
             <form action="{{ route('reports') }}" method="GET">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {{-- Filter by System --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {{-- Filter Proyek/Sistem --}}
                     <div>
-                        <label for="system_id" class="block text-sm font-medium text-slate-700">Proyek / Sistem</label>
-                        <select name="system_id" id="system_id"
-                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <label for="system_id" class="block text-sm font-medium text-slate-700">Proyek</label>
+                        <select name="system_id" id="system_id" x-model="system_id"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
                             <option value="">Semua Proyek</option>
                             @foreach ($systems as $system)
-                                <option value="{{ $system->id }}"
-                                    {{ request('system_id') == $system->id ? 'selected' : '' }}>
-                                    {{ $system->name }}
-                                </option>
+                                <option value="{{ $system->id }}">{{ $system->name }}</option>
                             @endforeach
                         </select>
                     </div>
-
-                    {{-- Filter by Status --}}
+                    {{-- Filter Status --}}
                     <div>
                         <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
-                        <select name="status" id="status"
-                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <select name="status" id="status" x-model="status"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
                             <option value="">Semua Status</option>
-                            <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>
-                                Completed
-                            </option>
-                            <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In
-                                Progress</option>
-                            <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending
-                            </option>
+                            <option value="completed">Completed</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="pending">Pending</option>
                         </select>
                     </div>
-                    <div class="col-span-1">
+                    {{-- FILTER BARU: Jenis Pekerjaan --}}
+                    <div>
+                        <label for="work_type" class="block text-sm font-medium text-slate-700">Jenis Pekerjaan</label>
+                        <select name="work_type" id="work_type" x-model="work_type"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                            <option value="">Semua Jenis</option>
+                            <option value="normal">Kerja Normal</option>
+                            <option value="overtime">Lembur</option>
+                        </select>
+                    </div>
+                    {{-- Filter Tanggal (Pre-defined) --}}
+                    <div>
                         <label for="date_filter" class="block text-sm font-medium text-slate-700">Periode Waktu</label>
                         <select name="date_filter" id="date_filter" x-model="date_filter"
                             class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
@@ -95,40 +100,37 @@
                             <option value="custom">Custom</option>
                         </select>
                     </div>
-                    {{-- Filter Tanggal (Custom Range) --}}
-                    <div x-show="date_filter === 'custom'" x-transition
-                        class="col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-4">
-                        <div>
-                            <label for="start_date" class="block text-sm font-medium text-slate-700">Dari
-                                Tanggal</label>
-                            <input type="date" name="start_date" id="start_date" x-model="start_date"
-                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
-                        </div>
-                        <div>
-                            <label for="end_date" class="block text-sm font-medium text-slate-700">Sampai
-                                Tanggal</label>
-                            <input type="date" name="end_date" id="end_date" x-model="end_date"
-                                class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
-                        </div>
+                </div>
+
+                {{-- Filter Tanggal (Custom Range) --}}
+                <div x-show="date_filter === 'custom'" x-transition class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium text-slate-700">Dari Tanggal</label>
+                        <input type="date" name="start_date" id="start_date" x-model="start_date"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
                     </div>
-                    {{-- Tombol Aksi --}}
-                    <div class="flex items-end space-x-2 col-span-1 md:col-span-2">
-                        <button type="submit"
-                            class="w-full justify-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold">Filter</button>
-                        <a href="{{ route('reports') }}"
-                            class="w-full text-center px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-semibold">Reset</a>
-                        {{-- TOMBOL EXPORT BARU --}}
-                        <a :href="exportUrl"
-                            class="w-full text-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center space-x-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                                </path>
-                            </svg>
-                            <span>Export</span>
-                        </a>
+                    <div>
+                        <label for="end_date" class="block text-sm font-medium text-slate-700">Sampai Tanggal</label>
+                        <input type="date" name="end_date" id="end_date"
+                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
                     </div>
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 mt-4 pt-4 border-t">
+                    <a :href="exportUrl()"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center justify-center space-x-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                            </path>
+                        </svg>
+                        <span>Export</span>
+                    </a>
+                    <a href="{{ route('reports') }}"
+                        class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 font-semibold text-sm">Reset</a>
+                    <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-semibold text-sm">Filter</button>
                 </div>
             </form>
         </div>
@@ -237,6 +239,30 @@
                                         <textarea name="description" id="description" rows="10" x-model="reportData.description"
                                             class="mt-1 block w-full rounded-md border-slate-300 shadow-sm"></textarea>
                                     </div>
+                                    <template
+                                        x-if="reportData && reportData.code_snippets && reportData.code_snippets.length > 0">
+                                        <div class="space-y-4">
+                                            <label class="block text-sm font-medium text-slate-700">Potongan Kode
+                                                Penting</label>
+                                            <template x-for="snippet in reportData.code_snippets"
+                                                :key="snippet.id">
+                                                <div class="border border-slate-200 rounded-lg">
+                                                    <p class="text-xs text-slate-500 bg-slate-50 px-4 py-2 border-b border-slate-200"
+                                                        x-text="snippet.description"></p>
+                                                    <pre class="text-xs bg-slate-900 text-white p-4 overflow-x-auto"><code x-text="snippet.content"></code></pre>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    {{-- TAMPILKAN FULL DIFF (OPSIONAL, UNTUK REFERENSI) --}}
+                                    <template x-if="reportData && reportData.raw_diff">
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700">Bukti Perubahan
+                                                Kode (Full Diff)</label>
+                                            <pre class="mt-1 block w-full text-xs bg-slate-900 text-white p-4 rounded-md overflow-x-auto max-h-64"><code x-text="reportData.raw_diff"></code></pre>
+                                        </div>
+                                    </template>
                                     <div>
                                         <label for="status-modal"
                                             class="block text-sm font-medium text-slate-700">Status</label>
@@ -245,6 +271,15 @@
                                             <option value="pending">Pending</option>
                                             <option value="in_progress">In Progress</option>
                                             <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="work_type-modal"
+                                            class="block text-sm font-medium text-slate-700">Jenis Pekerjaan</label>
+                                        <select name="work_type" id="work_type-modal" x-model="reportData.work_type"
+                                            class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                                            <option value="normal">Kerja Normal</option>
+                                            <option value="overtime">Lembur</option>
                                         </select>
                                     </div>
                                 </div>

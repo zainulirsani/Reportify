@@ -44,7 +44,7 @@ class ReportController extends Controller
         // Pastikan user hanya bisa melihat laporannya sendiri
         abort_if($report->system->user_id !== Auth::id(), 403);
 
-        return response()->json($report);
+        return response()->json($report->load('codeSnippets'));
     }
 
     public function update(Request $request, Report $report)
@@ -56,6 +56,7 @@ class ReportController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'status' => 'required|in:pending,in_progress,completed',
+            'work_type' => 'required|in:normal,overtime', // <-- Tambahkan ini
         ]);
 
         try {
@@ -70,16 +71,16 @@ class ReportController extends Controller
 
     public function export(Request $request)
     {
-        // Ambil semua filter dari request
         $system_id = $request->query('system_id');
         $status = $request->query('status');
+        $work_type = $request->query('work_type'); // <-- Pastikan baris ini ada
         $date_filter = $request->query('date_filter');
         $start_date = $request->query('start_date');
         $end_date = $request->query('end_date');
 
         $fileName = 'reports_' . now()->format('Y-m-d_H-i-s') . '.xlsx';
 
-        // Kirim semua parameter filter ke Export Class
-        return Excel::download(new ReportsExport($system_id, $status, $date_filter, $start_date, $end_date), $fileName);
+        // Pastikan $work_type diteruskan di sini
+        return Excel::download(new ReportsExport($system_id, $status, $work_type, $date_filter, $start_date, $end_date), $fileName);
     }
 }
