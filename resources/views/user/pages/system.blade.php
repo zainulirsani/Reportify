@@ -177,6 +177,14 @@
                                 <textarea name="description" id="description" rows="3" x-model="systemData.description"
                                     class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"></textarea>
                             </div>
+                            <div>
+                                <label for="category" class="block text-sm font-medium text-slate-700">Kategori Sistem</label>
+                                <select name="category" id="category" x-model="systemData.category"
+                                    class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                    <option value="internal">Internal</option>
+                                    <option value="eksternal">Eksternal</option>
+                                </select>
+                            </div>
                         </div>
 
                         {{-- Footer Panel (Tombol Aksi) --}}

@@ -5,6 +5,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\WeeklyReportController;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
 Route::redirect('/', '/dashboard');
 
@@ -42,4 +43,8 @@ Route::get('/reports/{report}', [ReportController::class, 'show'])
 Route::put('/reports/{report}', [ReportController::class, 'update'])
     ->middleware(['auth'])
     ->name('reports.update');
+
+
+Route::get('/weekly-report', [WeeklyReportController::class, 'index'])->name('reports.weekly');
+Route::post('/weekly-report/generate', [WeeklyReportController::class, 'generate'])->name('reports.weekly.generate');
 require __DIR__ . '/auth.php';

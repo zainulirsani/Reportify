@@ -49,8 +49,8 @@ class SystemController extends Controller
             'name' => 'required|string|max:255',
             'repository_url' => 'required|string|max:255|url',
             'description' => 'nullable|string',
+            'category' => 'required|string|in:internal,eksternal',
         ]);
-
         try {
             // Jalankan logika utama di dalam blok 'try'
             $this->systemService->createNewSystem($validatedData, auth()->user());
@@ -74,13 +74,13 @@ class SystemController extends Controller
     public function update(Request $request, System $system)
     {
         abort_if($system->user_id !== auth()->user()->id, 403);
-
+        // dd($request->all());
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
             'repository_url' => 'required|string|max:255|url',
             'description' => 'nullable|string',
+            'category' => 'required|string|in:internal,eksternal',
         ]);
-
         try {
             $this->systemService->updateSystem($system, $validatedData);
             return redirect()->route('systems')->with('success', 'Data sistem berhasil diperbarui!');

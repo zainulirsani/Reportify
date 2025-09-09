@@ -18,6 +18,7 @@ class System extends Model
         'name',
         'repository_url',
         'description',
+        'category',
     ];
 
     public function user(): BelongsTo

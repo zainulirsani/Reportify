@@ -100,15 +100,85 @@ class AIService
     }
     private function createSimplePrompt(string $commitMessage): string
     {
-        return "Anda adalah seorang asisten developer senior. Perubahan kode untuk commit ini terlalu besar untuk dianalisis. 
-            Tolong buatkan deskripsi laporan pekerjaan singkat dalam format paragraf Bahasa Indonesia HANYA BERDASARKAN PESAN COMMIT berikut.
+        return "Anda adalah seorang asisten yang bertugas mengubah pesan commit menjadi kalimat laporan.
+            Tugas Anda adalah **MERANGKUM** pesan commit berikut menjadi sebuah kalimat laporan pekerjaan yang profesional dalam Bahasa Indonesia.
+
+            **ATURAN PENTING: JANGAN MENAMBAHKAN INFORMASI, PENJELASAN, ALASAN, ATAU TUJUAN APAPUN** yang tidak ada secara eksplisit di dalam pesan commit. Cukup ubah formatnya menjadi kalimat laporan.
 
             KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON YANG VALID SEPERTI CONTOH INI:
             ```json
-            {
-                \"description\": \"(Tulis deskripsi laporan paragraf di sini berdasarkan pesan commit)\",
+                {
+                \"description\": \"(Tulis hasil rangkuman pesan commit di sini)\",
                 \"snippets\": []
-            }
+                }
             ```";
+    }
+
+    public function generateWeeklySummary(string $dailyReportsContext): array
+    {
+        $apiKey = config('services.gemini.api_key');
+        if (!$apiKey) {
+            throw new \Exception('Gemini API key is not set.');
+        }
+
+        // Perubahan terjadi di dalam method ini
+        $prompt = $this->createWeeklySummaryPrompt($dailyReportsContext);
+
+        $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+        $response = Http::withHeaders([
+            'X-goog-api-key' => $apiKey,
+            'Content-Type' => 'application/json',
+        ])->timeout(90)->post($apiUrl, [
+            'contents' => [['parts' => [['text' => $prompt]]]]
+        ]);
+
+        $response->throw();
+
+        $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
+        $jsonContent = Str::of($rawContent)->between('```json', '```')->trim();
+        if ($jsonContent->isEmpty()) {
+            $jsonContent = $rawContent;
+        }
+
+        $parsedJson = json_decode($jsonContent, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [
+                'summary_paragraph' => 'AI Gagal memberikan respons JSON yang valid. Respons mentah: ' . $rawContent,
+                'systems_worked_on' => [],
+            ];
+        }
+
+        return [
+            'summary_paragraph' => $parsedJson['summary_paragraph'] ?? 'AI gagal membuat ringkasan paragraf.',
+            'systems_worked_on' => $parsedJson['systems_worked_on'] ?? [],
+        ];
+    }
+
+    private function createWeeklySummaryPrompt(string $dailyReportsContext): string
+    {
+        return " Berikut adalah data mentah laporan pekerjaan harian selama seminggu terakhir. Data ini berada di dalam tag <DATA_LAPORAN>.
+            <DATA_LAPORAN>
+            {$dailyReportsContext}
+            </DATA_LAPORAN>
+
+            Tugas Anda adalah bertindak sebagai seorang karyawan developer yang sangat teliti. Anda diminta untuk membuat laporan mingguan atas perkejaan anda
+            Proses teks yang ada di dalam tag <DATA_LAPORAN> di atas dan lakukan dua hal:
+            1. Tulis satu ringkasan dalam format paragraf yang merangkum semua pencapaian dan progres. **Ringkasan WAJIB didasarkan HANYA pada informasi di dalam tag <DATA_LAPORAN>**.
+            2. Buat daftar (list) nama-nama sistem atau proyek unik yang disebutkan di dalam data dan sebutkan fokus pekerjaannya.
+
+            **ATURAN PENTING: ANDA DILARANG KERAS MENGGUNAKAN INFORMASI ATAU MENGARANG NAMA PROYEK APAPUN YANG TIDAK DISEBUTKAN SECARA EKSPLISIT DI DALAM TAG <DATA_LAPORAN>.**
+
+                KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON YANG VALID SEPERTI CONTOH DI BAWAH INI, TANPA TEKS LAIN.
+                ```json
+                {
+                    \"summary_paragraph\": \"(Tulis ringkasan paragraf berdasarkan data di sini)\",
+                    \"systems_worked_on\": [
+                        \"(Nama Sistem 1 dari data)\",
+                        \"(Nama Sistem 2 dari data)\"
+                    ]
+                }
+            ";
     }
 }
