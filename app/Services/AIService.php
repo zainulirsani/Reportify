@@ -49,7 +49,7 @@ class AIService
         $response->throw();
 
         $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
-        Log::info('Jawaban Mentah dari Gemini AI:', ['content' => $rawContent]);
+        // Log::info('Jawaban Mentah dari Gemini AI:', ['content' => $rawContent]);
         $jsonContent = Str::of($rawContent)->between('```json', '```')->trim();
         if ($jsonContent->isEmpty()) {
             $jsonContent = $rawContent;
@@ -121,9 +121,7 @@ class AIService
             throw new \Exception('Gemini API key is not set.');
         }
 
-        // Perubahan terjadi di dalam method ini
         $prompt = $this->createWeeklySummaryPrompt($dailyReportsContext);
-
         $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
         $response = Http::withHeaders([
@@ -135,48 +133,68 @@ class AIService
 
         $response->throw();
 
+        // Logika parsing JSON tidak berubah, tapi kita mengharapkan struktur yang berbeda
         $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
-        $jsonContent = Str::of($rawContent)->between('```json', '```')->trim();
-        if ($jsonContent->isEmpty()) {
-            $jsonContent = $rawContent;
+        Log::info('Jawaban Mentah dari Gemini AI (Weekly):', ['content' => $rawContent]);
+
+        $jsonString = null;
+        if (preg_match('/```json\s*(\{.*?\})\s*```/s', $rawContent, $matches)) {
+            $jsonString = $matches[1];
+        } elseif (preg_match('/(\{.*?\})/s', $rawContent, $matches)) {
+            $jsonString = $matches[1];
+        }
+        
+        $parsedJson = $jsonString ? json_decode($jsonString, true) : null;
+
+        if (json_last_error() !== JSON_ERROR_NONE || $parsedJson === null) {
+            return ['systems' => []]; // Kembalikan array kosong jika gagal
         }
 
-        $parsedJson = json_decode($jsonContent, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return [
-                'summary_paragraph' => 'AI Gagal memberikan respons JSON yang valid. Respons mentah: ' . $rawContent,
-                'systems_worked_on' => [],
-            ];
-        }
-
+        // Kembalikan key 'systems'
         return [
-            'summary_paragraph' => $parsedJson['summary_paragraph'] ?? 'AI gagal membuat ringkasan paragraf.',
-            'systems_worked_on' => $parsedJson['systems_worked_on'] ?? [],
+            'systems' => $parsedJson['systems'] ?? [],
         ];
     }
 
     private function createWeeklySummaryPrompt(string $dailyReportsContext): string
     {
-        return " Berikut adalah data mentah laporan pekerjaan harian selama seminggu terakhir. Data ini berada di dalam tag <DATA_LAPORAN>.
-            <DATA_LAPORAN>
-            {$dailyReportsContext}
-            </DATA_LAPORAN>
+        return "
+                Anda adalah seorang lead developer yang teliti, bertugas membuat laporan progres mingguan untuk manajemen.
+                Berikut adalah data mentah laporan harian dari tim Anda selama seminggu terakhir, berada di dalam tag <DATA_LAPORAN>.
 
-            Tugas Anda adalah bertindak sebagai seorang karyawan developer yang sangat teliti. Anda diminta untuk membuat laporan mingguan atas perkejaan anda
-            Proses teks yang ada di dalam tag <DATA_LAPORAN> di atas dan lakukan dua hal:
-            1. Tulis satu ringkasan dalam format paragraf yang merangkum semua pencapaian dan progres. **Ringkasan WAJIB didasarkan HANYA pada informasi di dalam tag <DATA_LAPORAN>**.
-            2. Buat daftar (list) nama-nama sistem atau proyek unik yang disebutkan di dalam data dan sebutkan fokus pekerjaannya.
+                <DATA_LAPORAN>
+                {$dailyReportsContext}
+                </DATA_LAPORAN>
 
-            **ATURAN PENTING: ANDA DILARANG KERAS MENGGUNAKAN INFORMASI ATAU MENGARANG NAMA PROYEK APAPUN YANG TIDAK DISEBUTKAN SECARA EKSPLISIT DI DALAM TAG <DATA_LAPORAN>.**
+                Tugas Anda adalah memproses semua data di dalam tag <DATA_LAPORAN> dan mengelompokkannya berdasarkan nama proyek/sistem.
+
+                Untuk **SETIAP** sistem yang dikerjakan, Anda harus menghasilkan:
+                a. Sebuah **daftar singkat (bullet points)** berisi poin-poin pekerjaan yang dilakukan (rangkum dari judul laporannya).
+                b. Satu **paragraf ringkasan** yang menjelaskan pekerjaan pada sistem tersebut secara lebih detail (rangkum dari deskripsi laporannya).
+
+                **ATURAN PENTING: ANDA DILARANG KERAS MENGGUNAKAN INFORMASI ATAU MENGARANG NAMA PROYEK APAPUN YANG TIDAK DISEBUTKAN SECARA EKSPLISIT DI DALAM TAG <DATA_LAPORAN>.**
 
                 KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON YANG VALID SEPERTI CONTOH DI BAWAH INI, TANPA TEKS LAIN.
+                Struktur JSON harus berupa object dengan satu key utama \"systems\" yang berisi array dari setiap proyek.
+
                 ```json
                 {
-                    \"summary_paragraph\": \"(Tulis ringkasan paragraf berdasarkan data di sini)\",
-                    \"systems_worked_on\": [
-                        \"(Nama Sistem 1 dari data)\",
-                        \"(Nama Sistem 2 dari data)\"
+                    \"systems\": [
+                        {
+                        \"name\": \"(Nama Sistem 1 dari data)\",
+                        \"tasks\": [
+                            \"(Poin pekerjaan 1 pada sistem 1)\",
+                            \"(Poin pekerjaan 2 pada sistem 1)\"
+                        ],
+                        \"summary_paragraph\": \"(Tulis paragraf ringkasan untuk pekerjaan di sistem 1 di sini)\"
+                        },
+                        {
+                        \"name\": \"(Nama Sistem 2 dari data)\",
+                        \"tasks\": [
+                            \"(Poin pekerjaan 1 pada sistem 2)\"
+                        ],
+                        \"summary_paragraph\": \"(Tulis paragraf ringkasan untuk pekerjaan di sistem 2 di sini)\"
+                        }
                     ]
                 }
             ";

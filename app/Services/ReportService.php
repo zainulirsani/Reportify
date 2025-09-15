@@ -44,7 +44,7 @@ class ReportService
             }
         });
 
-        return $query->latest('reports.created_at')->paginate(15);
+        return $query->latest('reports.created_at')->paginate(10);
     }
     public function updateReport(Report $report, array $validatedData): bool
     {
@@ -56,15 +56,26 @@ class ReportService
         return $report->update($validatedData);
     }
 
-    public function getReportsForWeeklySummary(User $user): Collection
+     public function getReportsForWeeklySummary(User $user, ?string $category = null): Collection
     {
-        return $user->reports()
+        // 1. Inisialisasi query builder, BUKAN return.
+        // Titik koma (;) di akhir baris with() juga dihapus.
+        $query = $user->reports()
             ->whereBetween('reports.created_at', [
                 now()->subDays(6)->startOfDay(), // 7 hari ke belakang termasuk hari ini
                 now()->endOfDay()
             ])
             ->where('status', 'completed')
-            ->with('system:id,name')
-            ->get();
+            ->with('system:id,name');
+
+        // 2. Sekarang $query sudah ada, kita bisa menambahkan kondisi 'when'
+        $query->when($category, function ($q, $cat) {
+            return $q->whereHas('system', function ($subQuery) use ($cat) {
+                $subQuery->where('category', $cat);
+            });
+        });
+
+        // 3. Return hasil query SETELAH semua kondisi ditambahkan, dengan ->get()
+        return $query->get();
     }
 }
