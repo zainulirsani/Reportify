@@ -1,9 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SystemController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AIUtilityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WeeklyReportController;
 use SebastianBergmann\CodeCoverage\Report\Html\Dashboard;
@@ -18,6 +20,8 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth'])
     ->name('dashboard');
 
+Route::resource('tasks', TaskController::class)->middleware(['auth']);
+
 Route::get('/systems', [SystemController::class, 'index'])
     ->middleware(['auth'])
     ->name('systems');
@@ -31,7 +35,8 @@ Route::delete('/systems/{system}', [SystemController::class, 'destroy'])
     ->middleware(['auth'])
     ->name('systems.destroy');
 
-Route::post('/systems/{system}/sync', [SystemController::class, 'sync'])->name('systems.sync');
+Route::get('/systems/{system}/sync/preview', [SystemController::class, 'syncPreview'])->name('systems.sync.preview');
+Route::post('/systems/sync/process', [SystemController::class, 'processSync'])->name('systems.sync.process');
 
 Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 Route::get('/reports', [ReportController::class, 'index'])
@@ -43,6 +48,8 @@ Route::get('/reports/{report}', [ReportController::class, 'show'])
 Route::put('/reports/{report}', [ReportController::class, 'update'])
     ->middleware(['auth'])
     ->name('reports.update');
+
+Route::post('/ai/rewrite-description', [AIUtilityController::class, 'rewriteDescription'])->name('ai.rewrite');
 
 
 Route::get('/weekly-report', [WeeklyReportController::class, 'index'])->name('reports.weekly');

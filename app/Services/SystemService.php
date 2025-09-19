@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\Task;
 use App\Models\User;
+use App\Models\Report;
 use App\Models\System;
 use App\Services\AIService;
 use App\Jobs\ProcessSyncCommits;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -72,11 +76,104 @@ class SystemService
     {
         return $user->systems()->orderBy('name')->get();
     }
-
-
-    public function syncCommitsFromGitHub(System $system, User $user)
+    public function getNewCommitsFromGitHub(System $system, User $user): array
     {
-        // Kirim object User bersama dengan System ke dalam Job
-        ProcessSyncCommits::dispatch($system, $user);
+        $repoPath = str_replace('https://github.com/', '', $system->repository_url);
+        $apiUrl = "https://api.github.com/repos/{$repoPath}/commits";
+
+        $response = Http::withToken(config('services.github.token'))
+            ->get($apiUrl, [
+                'sha' => $system->branch ?? 'main',
+                'since' => now()->startOfDay()->toIso8601String(),
+                'per_page' => 100,
+                'author' => $user->email,
+            ]);
+        
+        $response->throw();
+        $allCommits = $response->json();
+        if (empty($allCommits)) {
+            return [];
+        }
+
+        // Ambil semua hash commit yang sudah ada di DB untuk user ini
+        $existingHashes = Report::whereIn('commit_hash', collect($allCommits)->pluck('sha'))
+            ->pluck('commit_hash')
+            ->toArray();
+
+        // Filter dan kembalikan hanya commit yang hash-nya BELUM ADA di database
+        return collect($allCommits)
+            ->whereNotIn('sha', $existingHashes)
+            ->values() // Reset keys to ensure it's a clean array for JSON
+            ->all();
+    }
+
+    public function processMappedCommits(array $commitMappings, User $user, System $system): int
+    {
+        Log::info("Memulai pemrosesan sinkron untuk {$user->name} pada sistem {$system->name}.");
+
+        $newCommits = 0;
+        foreach ($commitMappings as $mapping) {
+            $commitData = $mapping['commit'];
+            $taskId = $mapping['task_id'];
+            $commitHash = $commitData['sha'];
+            
+            try {
+                $fullCommitMessage = $commitData['commit']['message'];
+                $parts = explode("\n\n", $fullCommitMessage, 2);
+                $commitSubject = trim($parts[0]);
+                
+                $detailResponse = Http::withToken(config('services.github.token'))->get($commitData['url']);
+                $rawDiff = '';
+                $changedFiles = 'N/A';
+
+                if ($detailResponse->successful()) {
+                    $commitDetails = $detailResponse->json();
+                    if (!empty($commitDetails['files'])) {
+                        $diffParts = [];
+                        foreach ($commitDetails['files'] as $file) {
+                            if (!empty($file['patch'])) {
+                                $diffParts[] = "--- a/{$file['filename']}\n+++ b/{$file['filename']}\n" . $file['patch'];
+                            }
+                        }
+                        $rawDiff = implode("\n\n", $diffParts);
+                        $changedFiles = collect($commitDetails['files'])->pluck('filename')->implode(', ');
+                    }
+                } else {
+                    Log::warning("Gagal mengambil detail diff untuk commit: {$commitHash}");
+                }
+                
+                $aiResult = $this->aiService->generateReportDetails($fullCommitMessage, $changedFiles, $rawDiff);
+
+                $report = Report::create([
+                    'system_id' => $system->id,
+                    'task_id' => $taskId,
+                    'title' => $commitSubject,
+                    'description' => $aiResult['description'],
+                    'raw_diff' => $rawDiff,
+                    'status' => 'pending',
+                    'commit_hash' => $commitHash,
+                    'started_at' => now(),
+                ]);
+
+                if (!empty($aiResult['snippets'])) {
+                    $report->codeSnippets()->createMany($aiResult['snippets']);
+                }
+
+                if ($taskId) {
+                    $task = Task::find($taskId);
+                    if ($task && $task->user_id === $user->id) {
+                        $task->update(['status' => 'done']);
+                        Log::info("Status tugas {$task->task_code} diperbarui menjadi 'done'.");
+                    }
+                }
+                $newCommits++;
+            } catch (\Exception $e) {
+                Log::error("Gagal memproses commit {$commitHash} untuk sistem {$system->name}: " . $e->getMessage());
+                continue;
+            }
+        }
+        
+        Log::info("Pemrosesan sinkron selesai. {$newCommits} laporan baru ditambahkan.");
+        return $newCommits;
     }
 }

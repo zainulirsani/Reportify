@@ -57,4 +57,8 @@ class User extends Authenticatable
     {
         return $this->hasManyThrough(Report::class, System::class);
     }
+      public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
 }

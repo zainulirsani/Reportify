@@ -52,37 +52,35 @@
 
                 <div class="bg-white border border-slate-200 rounded-xl">
                     <div class="px-6 py-4 border-b border-slate-200">
-                        <h3 class="text-lg font-semibold text-slate-800">Riwayat Commit Terbaru</h3>
+                        <h3 class="text-lg font-semibold text-slate-800">Riwayat Laporan Terbaru</h3>
                     </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">
-                                        Proyek</th>
-                                    <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">
-                                        Pesan Commit</th>
-                                    <th class="px-6 py-3 text-left font-medium text-slate-500 uppercase tracking-wider">
-                                        Waktu</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-200">
-                               @forelse ($recentReports as $report)
-                                    <tr>
-                                        <td class="px-6 py-4 whitespace-nowrap font-medium text-slate-800">
-                                            {{ $report->repository }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">
-                                            {{ Str::limit($report->message, 50) }}</td>
-                                        <td class="px-6 py-4 whitespace-nowrap text-slate-500">{{ $report->time }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="3" class="text-center py-10 text-slate-500">Tidak ada commit
-                                            terbaru untuk ditampilkan.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+
+                    {{-- Daftar Laporan --}}
+                    <div class="divide-y divide-slate-200">
+                        @forelse ($recentReports as $report)
+                            <div class="p-4 hover:bg-slate-50 transition-colors duration-200">
+                                <div class="flex justify-between items-start">
+                                    {{-- Judul dan Info Proyek --}}
+                                    <div>
+                                        <p class="font-semibold text-slate-800">{{ $report->title }}</p>
+                                        <p class="text-xs text-slate-500">
+                                            di Proyek: <span class="font-medium">{{ $report->system->name }}</span>
+                                        </p>
+                                    </div>
+                                    {{-- Waktu --}}
+                                    <p class="text-xs text-slate-400 flex-shrink-0 ml-4">
+                                        {{ $report->created_at->diffForHumans() }}</p>
+                                </div>
+                                {{-- Deskripsi (dibatasi 2 baris) --}}
+                                <p class="mt-2 text-sm text-slate-600 line-clamp-2">
+                                    {{ $report->description }}
+                                </p>
+                            </div>
+                        @empty
+                            <div class="text-center py-10 text-slate-500">
+                                <p>Belum ada laporan yang dibuat.</p>
+                            </div>
+                        @endforelse
                     </div>
                 </div>
             </div>

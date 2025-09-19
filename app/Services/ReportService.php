@@ -62,7 +62,7 @@ class ReportService
         // Titik koma (;) di akhir baris with() juga dihapus.
         $query = $user->reports()
             ->whereBetween('reports.created_at', [
-                now()->subDays(6)->startOfDay(), // 7 hari ke belakang termasuk hari ini
+                now()->subDays(7)->startOfDay(), // 7 hari ke belakang termasuk hari ini
                 now()->endOfDay()
             ])
             ->where('status', 'completed')

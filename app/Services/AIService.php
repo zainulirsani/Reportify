@@ -14,31 +14,30 @@ class AIService
      * Mengembalikan array terstruktur.
      */
 
+    
     private const DIFF_CHARACTER_LIMIT = 15000;
-    // app/Services/AIService.php
 
-    public function generateReportDetails(string $commitMessage, string $changedFiles, ?string $gitDiff = null): array
+    /**
+     * PERBAIKAN 1: Tambahkan parameter opsional $taskDescription
+     */
+    public function generateReportDetails(string $commitMessage, string $changedFiles, ?string $gitDiff = null, ?string $taskDescription = null): array
     {
         $apiKey = config('services.gemini.api_key');
         if (!$apiKey) {
             throw new \Exception('Gemini API key is not set.');
         }
 
-        // =====================================================================
-        // BAGIAN YANG DIPERBAIKI
-        // =====================================================================
+        // PERBAIKAN 2: Logika keputusan sekarang sepenuhnya ada di dalam service ini
         if (strlen($gitDiff ?? '') > self::DIFF_CHARACTER_LIMIT) {
-            // JALUR DARURAT: Jika diff terlalu besar, gunakan prompt sederhana.
-            $prompt = $this->createSimplePrompt($commitMessage);
+            // Jika diff terlalu besar, gunakan prompt sederhana yang sekarang lebih cerdas
+            $prompt = $this->createSimplePrompt($commitMessage, $taskDescription);
         } else {
-            // JALUR NORMAL: Jika diff ukurannya wajar, gunakan prompt canggih.
+            // Jika diff ukurannya wajar, gunakan prompt canggih
             $prompt = $this->createAdvancedPrompt($commitMessage, $changedFiles, $gitDiff);
         }
-        // Baris yang menimpa $prompt sudah dihapus.
-        // =====================================================================
 
         $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-
+        
         $response = Http::withHeaders([
             'X-goog-api-key' => $apiKey,
             'Content-Type' => 'application/json',
@@ -47,17 +46,13 @@ class AIService
         ]);
 
         $response->throw();
-
+        
         $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
-        // Log::info('Jawaban Mentah dari Gemini AI:', ['content' => $rawContent]);
-        $jsonContent = Str::of($rawContent)->between('```json', '```')->trim();
-        if ($jsonContent->isEmpty()) {
-            $jsonContent = $rawContent;
-        }
+        Log::info('Jawaban Mentah dari Gemini AI (Daily):', ['content' => $rawContent]);
 
-        $parsedJson = json_decode($jsonContent, true);
+        $parsedJson = $this->parseAiResponse($rawContent);
 
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if ($parsedJson === null) {
             return [
                 'description' => "Analisis AI Gagal (Format Respons Tidak Valid). Pesan Commit: " . $commitMessage,
                 'snippets' => [],
@@ -65,7 +60,7 @@ class AIService
         }
 
         return [
-            'description' => $parsedJson['description'] ?? 'Gagal membuat deskripsi otomatis.',
+            'description' => $parsedJson['description'] ?? "AI tidak memberikan deskripsi. Pesan Commit: " . $commitMessage,
             'snippets' => $parsedJson['snippets'] ?? [],
         ];
     }
@@ -98,20 +93,29 @@ class AIService
         }
         return $promptText;
     }
-    private function createSimplePrompt(string $commitMessage): string
+    private function createSimplePrompt(string $commitMessage, ?string $taskDescription = null): string
     {
-        return "Anda adalah seorang asisten yang bertugas mengubah pesan commit menjadi kalimat laporan.
-            Tugas Anda adalah **MERANGKUM** pesan commit berikut menjadi sebuah kalimat laporan pekerjaan yang profesional dalam Bahasa Indonesia.
+        $promptText = "Anda adalah seorang asisten developer senior. Perubahan kode untuk sebuah commit terlalu besar untuk dianalisis.
+            Tugas Anda adalah membuat deskripsi laporan pekerjaan yang informatif dengan **menghubungkan dua informasi** berikut:
+            1.  **Deskripsi Tugas Asli (Tujuan/Mengapa):** Ini menjelaskan tujuan awal dari pekerjaan yang dilakukan.
+            2.  **Pesan Commit (Hasil/Apa):** Ini menjelaskan apa yang developer selesaikan.
 
-            **ATURAN PENTING: JANGAN MENAMBAHKAN INFORMASI, PENJELASAN, ALASAN, ATAU TUJUAN APAPUN** yang tidak ada secara eksplisit di dalam pesan commit. Cukup ubah formatnya menjadi kalimat laporan.
+            Buatlah satu paragraf laporan dalam Bahasa Indonesia yang mengalir dengan baik, menjelaskan apa yang dikerjakan dalam konteks tujuan tugasnya.
 
             KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON YANG VALID SEPERTI CONTOH INI:
             ```json
-                {
-                \"description\": \"(Tulis hasil rangkuman pesan commit di sini)\",
-                \"snippets\": []
-                }
-            ```";
+            {
+            \"description\": \"(Tulis paragraf laporan gabungan di sini)\",
+            \"snippets\": []
+            }
+            ";
+        if ($taskDescription) {
+            $promptText .= "\n**1. Deskripsi Tugas Asli (Tujuan/Mengapa):**\n{$taskDescription}\n";
+        }
+
+        $promptText .= "\n**2. Pesan Commit (Hasil/Apa):**\n{$commitMessage}\n---";
+
+        return $promptText;
     }
 
     public function generateWeeklySummary(string $dailyReportsContext): array
@@ -133,29 +137,35 @@ class AIService
 
         $response->throw();
 
-        // Logika parsing JSON tidak berubah, tapi kita mengharapkan struktur yang berbeda
         $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
         Log::info('Jawaban Mentah dari Gemini AI (Weekly):', ['content' => $rawContent]);
 
-        $jsonString = null;
-        if (preg_match('/```json\s*(\{.*?\})\s*```/s', $rawContent, $matches)) {
-            $jsonString = $matches[1];
-        } elseif (preg_match('/(\{.*?\})/s', $rawContent, $matches)) {
-            $jsonString = $matches[1];
-        }
-        
-        $parsedJson = $jsonString ? json_decode($jsonString, true) : null;
+        $parsedJson = $this->parseAiResponse($rawContent);
 
-        if (json_last_error() !== JSON_ERROR_NONE || $parsedJson === null) {
-            return ['systems' => []]; // Kembalikan array kosong jika gagal
+        if ($parsedJson === null) {
+            return ['systems' => []];
         }
 
-        // Kembalikan key 'systems'
         return [
             'systems' => $parsedJson['systems'] ?? [],
         ];
     }
+    private function parseAiResponse(string $rawContent): ?array
+    {
+        $jsonString = null;
+        if (preg_match('/```json\s*(.*?)\s*```/s', $rawContent, $matches)) {
+            $jsonString = $matches[1];
+        } elseif (preg_match('/(\{.*\}|\[.*\])/s', $rawContent, $matches)) {
+            $jsonString = $matches[0];
+        }
 
+        if ($jsonString) {
+            $decoded = json_decode($jsonString, true);
+            return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+        }
+
+        return null;
+    }
     private function createWeeklySummaryPrompt(string $dailyReportsContext): string
     {
         return "
@@ -197,6 +207,58 @@ class AIService
                         }
                     ]
                 }
+            ";
+    }
+
+
+    public function rewriteTextForClarity(string $technicalText): array
+    {
+        $apiKey = config('services.gemini.api_key');
+        if (!$apiKey) {
+            throw new \Exception('Gemini API key is not set.');
+        }
+
+        $prompt = $this->createRewritePrompt($technicalText);
+        $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+        $response = Http::withHeaders([
+            'X-goog-api-key' => $apiKey,
+            'Content-Type' => 'application/json',
+        ])->timeout(30)->post($apiUrl, [
+            'contents' => [['parts' => [['text' => $prompt]]]]
+        ]);
+
+        $response->throw();
+
+        // Gunakan helper parseAiResponse yang sudah tangguh
+        $rawContent = $response->json('candidates.0.content.parts.0.text', '{}');
+        $parsedJson = $this->parseAiResponse($rawContent);
+
+        // Kembalikan array 'suggestions', atau array kosong jika gagal
+        return $parsedJson['suggestions'] ?? [];
+    }
+
+    private function createRewritePrompt(string $technicalText): string
+    {
+        return "Anda adalah seorang asisten penulis yang cerdas, ahli dalam mengubah catatan developer menjadi bahasa yang profesional dan mudah dimengerti oleh audiens non-teknis (seperti manajer atau klien).
+
+                Tugas Anda adalah **menyempurnakan dan memperjelas** teks berikut, lalu berikan 3 versi alternatif.
+
+                ATURAN PENTING:
+                - **JANGAN** mengarang fitur atau detail teknis yang tidak disebutkan dalam teks asli.
+                - Fokus **HANYA** pada informasi yang diberikan dalam teks asli.
+                - Hasil akhir harus tetap faktual dan sesuai dengan inti pesan dari input.
+
+                KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON seperti contoh ini:
+                ```json
+                {
+                \"suggestions\": [
+                    \"(Versi tulisan ulang pertama yang lebih formal di sini)\",
+                    \"(Versi tulisan ulang kedua yang lebih singkat/to-the-point di sini)\",
+                    \"(Versi tulisan ulang ketiga yang menyoroti tujuan/manfaatnya di sini)\"
+                ]
+                }
+            ```
             ";
     }
 }

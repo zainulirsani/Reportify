@@ -5,37 +5,65 @@
 
     {{-- "Otak" Alpine.js untuk mengelola state panel --}}
     <div x-data="{
+        // State untuk panel edit/create sistem
         showPanel: false,
         isEditMode: false,
         formTitle: '',
         formUrl: '',
-        formMethod: 'POST',
-        systemData: {
-            id: null,
-            name: '',
-            repository_url: 'systems.store',
-            description: ''
-        },
+        systemData: { id: null, name: '', repository_url: '', description: '', category: 'internal' },
+
+        // State BARU untuk modal sync
+        showSyncModal: false,
+        isLoadingSyncPreview: false,
+        isProcessingSync: false,
+        syncPreviewData: { new_commits: [], open_tasks: [] },
+        commitMappings: [],
+        syncingSystem: null,
+
         openCreatePanel() {
             this.isEditMode = false;
             this.formTitle = 'Tambah Sistem Baru';
-            this.formUrl = '';
-            this.formMethod = 'POST';
-            this.systemData = { id: null, name: '', repository_url: '', description: '' };
+            this.formUrl = '{{ route('systems.store') }}';
+            this.systemData = { id: null, name: '', repository_url: '', description: '', category: 'internal' };
             this.showPanel = true;
         },
         openEditPanel(system) {
             this.isEditMode = true;
             this.formTitle = 'Edit Sistem';
             this.formUrl = `/systems/${system.id}`;
-            this.formMethod = 'PUT';
             this.systemData = {
                 id: system.id,
                 name: system.name,
                 repository_url: system.repository_url,
-                description: system.description || ''
+                description: system.description || '',
+                category: system.category || 'internal'
             };
             this.showPanel = true;
+        },
+
+        // Fungsi BARU untuk membuka modal sync
+        openSyncModal(system) {
+            this.syncingSystem = system; // Simpan data sistem yang sedang disinkronkan
+            this.isLoadingSyncPreview = true;
+            this.showSyncModal = true;
+            this.syncPreviewData = { new_commits: [], open_tasks: [] }; // Reset data lama
+
+            fetch(`/systems/${system.id}/sync/preview`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) throw new Error(data.error);
+                    this.syncPreviewData = data;
+                    // Siapkan array untuk menampung pemetaan (commit -> tugas)
+                    this.commitMappings = data.new_commits.map(commit => ({
+                        commit: commit,
+                        task_id: '' // Defaultnya tidak terhubung ke tugas manapun
+                    }));
+                })
+                .catch(error => {
+                    alert(error.message);
+                    this.showSyncModal = false;
+                })
+                .finally(() => this.isLoadingSyncPreview = false);
         }
     }" class="space-y-6">
 
@@ -88,10 +116,7 @@
                                     {{-- Tombol Edit juga memanggil fungsi Alpine.js --}}
                                     <button @click="openEditPanel({{ json_encode($system) }})"
                                         class="text-indigo-600 hover:text-indigo-900">Edit</button>
-                                    <form action="{{ route('systems.sync', $system) }}" method="POST" class="inline">
-                                        @csrf
-                                        <button type="submit" class="text-green-600 hover:text-green-900">Sync</button>
-                                    </form>
+                                    <button @click.prevent="openSyncModal({{ $system }})" class="text-green-600 hover:text-green-900">Sync</button>
                                     <form action="{{ route('systems.destroy', $system) }}" method="POST"
                                         onsubmit="return confirm('Apakah Anda yakin ingin menghapus sistem ini?');"
                                         class="inline">
@@ -195,6 +220,78 @@
                                 <button type="submit"
                                     class="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700">Simpan</button>
                             </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div x-show="showSyncModal" style="display: none;" x-cloak class="relative z-50">
+            <div x-show="showSyncModal" x-transition.opacity class="fixed inset-0 bg-black bg-opacity-60"></div>
+            <div class="fixed inset-0 overflow-y-auto">
+                <div class="flex min-h-full items-center justify-center p-4">
+                    <form action="{{ route('systems.sync.process') }}" method="POST" @submit="isProcessingSync = true" @click.away="showSyncModal = false" x-show="showSyncModal" x-transition class="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
+                        @csrf
+                        {{-- Kirim system_id secara tersembunyi --}}
+                        <input type="hidden" name="system_id" :value="syncingSystem ? syncingSystem.id : ''">
+
+                        <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                            <h3 class="text-lg font-semibold text-slate-800">Hubungkan Commit dengan Tugas</h3>
+                        </div>
+                        
+                        <div class="p-6 max-h-[70vh] overflow-y-auto">
+                            {{-- Tampilan Loading --}}
+                            <div x-show="isLoadingSyncPreview" class="text-center py-8">
+                                <p class="text-slate-500">Mencari commit baru di GitHub...</p>
+                            </div>
+
+                            {{-- Tampilan Hasil --}}
+                            <div x-show="!isLoadingSyncPreview">
+                                {{-- Jika tidak ada commit baru --}}
+                                <template x-if="commitMappings.length === 0">
+                                    <p class="text-center py-8 text-slate-500">Tidak ada commit baru yang ditemukan untuk disinkronkan.</p>
+                                </template>
+
+                                {{-- Jika ada commit baru --}}
+                                <template x-if="commitMappings.length > 0">
+                                    <div class="space-y-4">
+                                        <p class="text-sm text-slate-600">Ditemukan <strong x-text="commitMappings.length"></strong> commit baru. Silakan hubungkan setiap commit dengan tugas yang relevan. Commit yang terhubung akan mengubah status tugas menjadi "Done".</p>
+                                        
+                                        <div class="space-y-3">
+                                            <template x-for="(mapping, index) in commitMappings" :key="mapping.commit.sha">
+                                                <div class="grid grid-cols-2 gap-4 items-center">
+                                                    {{-- Info Commit --}}
+                                                    <div class="text-sm bg-slate-50 p-3 rounded-md border">
+                                                        <p class="font-semibold text-slate-700 truncate" x-text="mapping.commit.commit.message.split('\n\n')[0]"></p>
+                                                        <p class="text-xs text-slate-500" x-text="`oleh ${mapping.commit.commit.author.name}`"></p>
+                                                    </div>
+                                                    {{-- Dropdown Pilihan Tugas --}}
+                                                    <div>
+                                                        {{-- Kirim data commit sebagai JSON tersembunyi --}}
+                                                        <input type="hidden" :name="`mappings[${index}][commit]`" :value="JSON.stringify(mapping.commit)">
+                                                        
+                                                        <select :name="`mappings[${index}][task_id]`" x-model="mapping.task_id" class="block w-full rounded-md border-slate-300 shadow-sm text-sm">
+                                                            <option value="">-- Tidak Terkait Tugas --</option>
+                                                            <template x-for="task in syncPreviewData.open_tasks" :key="task.id">
+                                                                <option :value="task.id" x-text="`${task.task_code}: ${task.title}`"></option>
+                                                            </template>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-50 px-6 py-4 flex justify-end space-x-3">
+                            <button @click.prevent="showSyncModal = false" type="button" class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Batal</button>
+                            <button type="submit" x-show="!isLoadingSyncPreview && commitMappings.length > 0" :disabled="isProcessingSync" class="inline-flex justify-center rounded-md border border-transparent bg-green-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:bg-green-300">
+                                <svg x-show="isProcessingSync" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span x-text="isProcessingSync ? 'Memproses...' : 'Proses Laporan'"></span>
+                            </button>
                         </div>
                     </form>
                 </div>

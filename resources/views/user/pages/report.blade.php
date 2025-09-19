@@ -176,7 +176,6 @@
                                     {{ $report->completed_at ? $report->completed_at->format('d M Y, H:i') : '-' }}
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    {{-- PERUBAHAN DI SINI: Tombol memanggil fungsi Alpine.js --}}
                                     <button @click="openReportModal({{ $report->id }})"
                                         class="text-indigo-600 hover:text-indigo-900 font-medium">Lihat Detail</button>
                                 </td>

@@ -24,7 +24,7 @@ class DashboardService
         // 2. Data untuk Tabel Riwayat Laporan Terbaru
         // DIPERBAIKI: Menambahkan 'reports.created_at' pada latest()
         $recentReports = $user->reports()->with('system')->latest('reports.created_at')->take(5)->get();
-        
+        // dd($recentReports);
         // 3. Data untuk daftar sistem/proyek
         $systems = $user->systems;
 
@@ -50,52 +50,55 @@ class DashboardService
      * @return array
      */
     private function prepareChartData(User $user): array
-    {
-        $startDate = now()->subDays(4)->startOfDay();
-        
-        // DIPERBAIKI: Menambahkan 'reports.created_at' di dalam 'where'
-        $reportsForChart = $user->reports()
-            ->where('reports.created_at', '>=', $startDate)
-            ->select('system_id', 'reports.created_at') // Juga perbaiki di select untuk kejelasan
-            ->with('system:id,name')
-            ->get();
+{
+    // PERBAIKAN 1: Ambil data laporan dari 10 hari terakhir.
+    $startDate = now()->subDays(9)->startOfDay();
+    
+    $reportsForChart = $user->reports()
+        ->where('reports.created_at', '>=', $startDate)
+        ->select('system_id', 'reports.created_at')
+        ->with('system:id,name')
+        ->get();
 
-
-        if ($reportsForChart->isEmpty()) {
-            return [ collect(), [] ];
-        }
-
-        // Buat label untuk 5 hari terakhir
-        $chartLabels = collect();
-        for ($i = 4; $i >= 0; $i--) {
-            $chartLabels->push(now()->subDays($i)->format('d M'));
-        }
-
-        $systemsForChart = $reportsForChart->pluck('system.name')->unique()->values();
-        $datasets = [];
-        $colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'];
-
-        foreach ($systemsForChart as $index => $systemName) {
-            $data = [];
-            foreach ($chartLabels as $label) {
-                $date = Carbon::createFromFormat('d M', $label);
-                $count = $reportsForChart
-                    ->where('system.name', $systemName)
-                    ->where('created_at', '>=', $date->startOfDay())
-                    ->where('created_at', '<=', $date->endOfDay())
-                    ->count();
-                $data[] = $count;
-            }
-            $datasets[] = [
-                'label' => $systemName,
-                'data' => $data,
-                'borderColor' => $colors[$index % count($colors)],
-                'backgroundColor' => $colors[$index % count($colors)] . '33',
-                'tension' => 0.2,
-                'fill' => true,
-            ];
-        }
-
-        return [$chartLabels, $datasets];
+    if ($reportsForChart->isEmpty()) {
+        return [ collect(), [] ];
     }
+
+    // PERBAIKAN 2: Buat label untuk 10 hari terakhir di sumbu X chart.
+    $chartLabels = collect();
+    for ($i = 9; $i >= 0; $i--) {
+        $chartLabels->push(now()->subDays($i)->format('d M'));
+    }
+
+    $systemsForChart = $reportsForChart->pluck('system.name')->unique()->values();
+    $datasets = [];
+    // Menambahkan lebih banyak variasi warna untuk chart
+    $colors = ['#4F46E5', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#22C55E'];
+
+    foreach ($systemsForChart as $index => $systemName) {
+        $data = [];
+        foreach ($chartLabels as $label) {
+            $date = \Carbon\Carbon::createFromFormat('d M', $label);
+            
+            // Logika ini sudah benar: Menghitung jumlah laporan per hari dari data yang sudah diambil
+            $count = $reportsForChart
+                ->where('system.name', $systemName)
+                ->where('created_at', '>=', $date->startOfDay())
+                ->where('created_at', '<=', $date->endOfDay())
+                ->count();
+                
+            $data[] = $count;
+        }
+        $datasets[] = [
+            'label' => $systemName,
+            'data' => $data,
+            'borderColor' => $colors[$index % count($colors)],
+            'backgroundColor' => $colors[$index % count($colors)] . '33',
+            'tension' => 0.2,
+            'fill' => true,
+        ];
+    }
+
+    return [$chartLabels, $datasets];
+}
 }

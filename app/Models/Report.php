@@ -14,6 +14,7 @@ class Report extends Model
 
     protected $fillable = [
         'system_id',
+        'task_id',
         'title',
         'description',
         'raw_diff',
@@ -39,5 +40,9 @@ class Report extends Model
     public function codeSnippets(): HasMany
     {
         return $this->hasMany(CodeSnippet::class);
+    }
+    public function task(): BelongsTo
+    {
+        return $this->belongsTo(Task::class);
     }
 }
