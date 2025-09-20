@@ -8,6 +8,7 @@
         isLoading: false,
         reportData: null,
         formUrl: '',
+        showManualReportModal: false,
         openReportModal(reportId) {
             this.showModal = true;
             this.isLoading = true;
@@ -53,7 +54,13 @@
                 return `{{ route('reports.export') }}?${params.toString()}`;
             }
         }" class="bg-white p-6 rounded-xl border border-slate-200">
-            <h3 class="text-lg font-semibold text-slate-800 mb-4">Filter Laporan</h3>
+           <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-slate-800">Filter Laporan</h3>
+                {{-- Tombol BARU untuk Laporan Manual --}}
+                <button @click="showManualReportModal = true" class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 text-sm font-semibold">
+                    + Tambah Laporan Manual
+                </button>
+            </div>
             <form action="{{ route('reports') }}" method="GET">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {{-- Filter Proyek/Sistem --}}
@@ -292,6 +299,54 @@
                                 </div>
                             </form>
                         </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+         <div x-show="showManualReportModal" style="display: none;" x-cloak class="relative z-50">
+            <div x-show="showManualReportModal" x-transition.opacity class="fixed inset-0 bg-black bg-opacity-60"></div>
+            <div class="fixed inset-0 overflow-y-auto">
+                <div class="flex min-h-full items-center justify-center p-4">
+                    <div @click.away="showManualReportModal = false" x-show="showManualReportModal" x-transition class="relative w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
+                        
+                        <form action="{{ route('reports.store.manual') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200">
+                                <h3 class="text-lg font-semibold text-slate-800">Buat Laporan Manual</h3>
+                            </div>
+                            
+                            <div class="p-6 space-y-4">
+                                <div>
+                                    <label for="task_id" class="block text-sm font-medium text-slate-700">Pilih Tugas yang Diselesaikan</label>
+                                    <select name="task_id" id="task_id" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm">
+                                        <option value="" disabled selected>-- Pilih Tugas --</option>
+                                        @foreach($openTasks as $task)
+                                            <option value="{{ $task->id }}">{{ $task->task_code }}: {{ $task->title }} ({{$task->system->name}})</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="description" class="block text-sm font-medium text-slate-700">Deskripsi Penyelesaian</label>
+                                    <textarea name="description" id="description" rows="5" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm" placeholder="Jelaskan apa yang sudah Anda kerjakan untuk menyelesaikan tugas ini..."></textarea>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="attachment_before" class="block text-sm font-medium text-slate-700">Bukti Sebelum (Opsional)</label>
+                                        <input type="file" name="attachment_before" id="attachment_before" class="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                                    </div>
+                                     <div>
+                                        <label for="attachment_after" class="block text-sm font-medium text-slate-700">Bukti Sesudah (Opsional)</label>
+                                        <input type="file" name="attachment_after" id="attachment_after" class="mt-1 block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50 px-6 py-4 flex justify-end space-x-3">
+                                <button @click.prevent="showManualReportModal = false" type="button" class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Batal</button>
+                                <button type="submit" class="inline-flex justify-center rounded-md border border-transparent bg-cyan-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-cyan-700">Simpan Laporan</button>
+                            </div>
+                        </form>
+
                     </div>
                 </div>
             </div>

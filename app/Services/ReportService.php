@@ -4,10 +4,13 @@ namespace App\Services;
 
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use App\Models\Task;
 use App\Models\User;
 use App\Models\Report;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
+use Illuminate\Support\Facades\Storage;
 
 class ReportService
 {
@@ -77,5 +80,33 @@ class ReportService
 
         // 3. Return hasil query SETELAH semua kondisi ditambahkan, dengan ->get()
         return $query->get();
+    }
+
+    public function createManualReport(array $data, User $user): Report
+    {
+        // Handle upload file "sebelum"
+        if (!empty($data['attachment_before'])) {
+            $data['attachment_before_path'] = $data['attachment_before']->store('report_attachments', 'public');
+        }
+        
+        // Handle upload file "sesudah"
+        if (!empty($data['attachment_after'])) {
+            $data['attachment_after_path'] = $data['attachment_after']->store('report_attachments', 'public');
+        }
+
+        // Ambil judul dari tugas yang dipilih
+        $task = Task::findOrFail($data['task_id']);
+        $data['title'] = $task->title;
+        $data['system_id'] = $task->system_id;
+        $data['status'] = 'completed'; // Laporan manual langsung dianggap 'completed'
+        $data['started_at'] = now();
+        $data['completed_at'] = now();
+
+        $report = $user->reports()->create($data);
+
+        // Update status tugas menjadi 'done'
+        $task->update(['status' => 'done']);
+
+        return $report;
     }
 }

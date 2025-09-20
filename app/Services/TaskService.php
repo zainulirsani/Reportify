@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Validation\ValidationException;
 
 class TaskService
 {
@@ -60,6 +61,13 @@ class TaskService
      */
     public function updateTask(Task $task, array $validatedData): bool
     {
+
+        if ($task->status === 'done' && $validatedData['status'] !== 'done') {
+            // Lempar exception jika ada usaha mengubah status dari 'done'
+            throw ValidationException::withMessages([
+                'status' => 'Tugas yang sudah selesai tidak dapat diubah statusnya.',
+            ]);
+        }
         // --- LOGIKA UPLOAD FILE (Update) ---
         if (!empty($validatedData['attachment'])) {
             // Hapus file lampiran lama jika ada, untuk menghemat ruang

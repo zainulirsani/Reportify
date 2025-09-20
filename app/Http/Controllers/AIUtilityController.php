@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Services\AIService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class AIUtilityController extends Controller
 {
@@ -10,20 +11,21 @@ class AIUtilityController extends Controller
     {
     }
 
-     public function rewriteDescription(Request $request)
+    public function rewriteDescription(Request $request)
     {
         $validated = $request->validate([
             'text' => 'required|string|max:2000',
         ]);
 
         try {
-            // Method ini sekarang mengembalikan array
             $rewrittenSuggestions = $this->aiService->rewriteTextForClarity($validated['text']);
             
-            // Kirim array tersebut dalam key 'suggestions'
+            // LANGKAH DEBUGGING: Catat apa yang dikembalikan oleh service
+            Log::info('Saran dari AIService:', ['suggestions' => $rewrittenSuggestions]);
+            
             return response()->json(['suggestions' => $rewrittenSuggestions]);
-
         } catch (\Exception $e) {
+            Log::error('Error di AIUtilityController: ' . $e->getMessage());
             return response()->json(['error' => 'Gagal terhubung dengan AI. Coba lagi nanti.'], 500);
         }
     }

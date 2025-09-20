@@ -49,6 +49,8 @@ Route::put('/reports/{report}', [ReportController::class, 'update'])
     ->middleware(['auth'])
     ->name('reports.update');
 
+Route::post('/reports/manual', [ReportController::class, 'storeManual'])->name('reports.store.manual');
+
 Route::post('/ai/rewrite-description', [AIUtilityController::class, 'rewriteDescription'])->name('ai.rewrite');
 
 

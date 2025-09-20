@@ -239,26 +239,27 @@ class AIService
     }
 
     private function createRewritePrompt(string $technicalText): string
-    {
-        return "Anda adalah seorang asisten penulis yang cerdas, ahli dalam mengubah catatan developer menjadi bahasa yang profesional dan mudah dimengerti oleh audiens non-teknis (seperti manajer atau klien).
+{
+    return "Tulis ulang teks teknis berikut menjadi 3 versi kalimat yang lebih profesional dan mudah dimengerti untuk laporan.
+    
+        ATURAN:
+        - Jawaban WAJIB dalam format JSON.
+        - Jelaskan masalah yang terjadi dan solusinya yang bisa diambil.
+        - Gunakan Bahasa Indonesia yang baik dan benar.
+        - JANGAN mengarang informasi baru.
+        - JANGAN menjelaskan apa yang sedang kamu lakukan.
 
-                Tugas Anda adalah **menyempurnakan dan memperjelas** teks berikut, lalu berikan 3 versi alternatif.
+        CONTOH JAWABAN JSON:
+        ```json
+        {
+        \"suggestions\": [
+            \"(Versi 1)\",
+            \"(Versi 2)\",
+            \"(Versi 3)\"
+        ]
+        }
+        {$technicalText}
 
-                ATURAN PENTING:
-                - **JANGAN** mengarang fitur atau detail teknis yang tidak disebutkan dalam teks asli.
-                - Fokus **HANYA** pada informasi yang diberikan dalam teks asli.
-                - Hasil akhir harus tetap faktual dan sesuai dengan inti pesan dari input.
-
-                KEMBALIKAN JAWABAN HANYA DALAM FORMAT JSON seperti contoh ini:
-                ```json
-                {
-                \"suggestions\": [
-                    \"(Versi tulisan ulang pertama yang lebih formal di sini)\",
-                    \"(Versi tulisan ulang kedua yang lebih singkat/to-the-point di sini)\",
-                    \"(Versi tulisan ulang ketiga yang menyoroti tujuan/manfaatnya di sini)\"
-                ]
-                }
-            ```
             ";
     }
 }

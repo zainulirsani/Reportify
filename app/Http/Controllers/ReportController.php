@@ -4,25 +4,28 @@ namespace App\Http\Controllers;
 
 use App\Models\Report;
 use Illuminate\Http\Request;
+use App\Services\TaskService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use App\Exports\ReportsExport; // <-- Import Export Class
 use App\Services\ReportService; // <-- Import ReportService
 use App\Services\SystemService; // <-- Import SystemService
-use App\Exports\ReportsExport; // <-- Import Export Class
 use Maatwebsite\Excel\Facades\Excel; // <-- Import Facade Excel
 
 class ReportController extends Controller
 {
     protected ReportService $reportService;
     protected SystemService $systemService;
+    protected TaskService $taskService;
 
     /**
      * Suntikkan kedua service melalui constructor.
      */
-    public function __construct(ReportService $reportService, SystemService $systemService)
+    public function __construct(ReportService $reportService, SystemService $systemService, TaskService $taskService)
     {
         $this->reportService = $reportService;
         $this->systemService = $systemService;
+        $this->taskService = $taskService;
     }
 
     /**
@@ -35,8 +38,9 @@ class ReportController extends Controller
         // Delegasikan semua pekerjaan ke service!
         $reports = $this->reportService->getFilteredReportsForUser($user, $request);
         $systems = $this->systemService->getAllSystemsForUser($user);
+        $openTasks = $this->taskService->getOpenTasksForUser(Auth::user());
         // Controller hanya bertugas mengirim data ke view
-        return view('user.pages.report', compact('reports', 'systems'));
+        return view('user.pages.report', compact('reports', 'systems','openTasks'));
     }
 
     public function show(Report $report)
@@ -82,5 +86,23 @@ class ReportController extends Controller
 
         // Pastikan $work_type diteruskan di sini
         return Excel::download(new ReportsExport($system_id, $status, $work_type, $date_filter, $start_date, $end_date), $fileName);
+    }
+
+    public function storeManual(Request $request)
+    {
+        $validatedData = $request->validate([
+            'task_id' => 'required|exists:tasks,id',
+            'description' => 'required|string',
+            'attachment_before' => 'nullable|image|max:2048', // Maks 2MB
+            'attachment_after' => 'nullable|image|max:2048',
+        ]);
+
+        try {
+            $this->reportService->createManualReport($validatedData, Auth::user());
+            return redirect()->route('reports.index')->with('success', 'Laporan manual berhasil ditambahkan!');
+        } catch (\Exception $e) {
+            Log::error('Gagal menyimpan laporan manual: ' . $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan laporan.');
+        }
     }
 }

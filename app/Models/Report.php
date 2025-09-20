@@ -18,6 +18,8 @@ class Report extends Model
         'title',
         'description',
         'raw_diff',
+        'attachment_before_path', // <-- Tambahkan ini
+        'attachment_after_path',  // <-- Tambahkan ini
         'status',
         'work_type', // <-- Tambahkan ini
         'started_at',

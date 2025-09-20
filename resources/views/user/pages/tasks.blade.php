@@ -319,7 +319,7 @@
                             </div>
                             <div>
                                 <label for="status" class="block text-sm font-medium text-slate-700">Status</label>
-                                <select name="status" id="status" x-model="taskData.status" required
+                                <select name="status" id="status" x-model="taskData.status" required :disabled="isEditMode && taskData.status === 'done'"
                                     class="mt-1 block w-full border border-slate-300 rounded-md shadow-sm">
                                     <option value="todo">To-Do</option>
                                     <option value="in_progress">In Progress</option>
@@ -340,130 +340,133 @@
         </div>
 
         <div x-show="showDetailModal" style="display: none;" x-cloak class="relative z-50">
-            {{-- Latar belakang (Backdrop) --}}
             <div x-show="showDetailModal" x-transition.opacity class="fixed inset-0 bg-black bg-opacity-60"></div>
-
-            {{-- Konten Modal --}}
             <div class="fixed inset-0 overflow-y-auto">
                 <div class="flex min-h-full items-center justify-center p-4">
                     <div @click.away="showDetailModal = false" x-show="showDetailModal" x-transition
                         class="relative w-full max-w-4xl transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
 
-                        {{-- Tampilan saat Loading --}}
                         <div x-show="isLoadingDetail" class="p-12 text-center">
                             <p class="text-slate-500">Memuat data tugas...</p>
                         </div>
 
-                        {{-- Konten Detail (Tampil setelah loading selesai) --}}
-                        <div x-show="!isLoadingDetail && detailTaskData" class="max-h-[85vh] overflow-y-auto">
-                            {{-- Header Modal --}}
-                            <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 sticky top-0 z-10">
-                                <h3 class="text-lg font-semibold text-slate-800" x-text="detailTaskData.title"></h3>
-                                <p class="text-sm text-slate-500" x-text="`Kode: ${detailTaskData.task_code}`"></p>
-                            </div>
-
-                            {{-- Body Modal --}}
-                            <div class="p-6 space-y-6 text-sm">
-                                {{-- Detail Tugas Utama --}}
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div>
-                                            <dt class="font-medium text-slate-500">Proyek</dt>
-                                            <dd class="mt-1 text-slate-900"
-                                                x-text="detailTaskData.system ? detailTaskData.system.name : '-'"></dd>
-                                        </div>
-                                        <div>
-                                            <dt class="font-medium text-slate-500">Status</dt>
-                                            <dd class="mt-1 text-slate-900"
-                                                x-text="detailTaskData.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())">
-                                            </dd>
-                                        </div>
-                                        <div>
-                                            <dt class="font-medium text-slate-500">Batas Waktu</dt>
+                        {{-- PERBAIKAN: Gunakan x-if untuk mencegah error saat data masih null --}}
+                        <template x-if="detailTaskData">
+                            <div class="max-h-[85vh] overflow-y-auto">
+                                <div class="bg-slate-50 px-6 py-4 border-b border-slate-200 sticky top-0 z-10">
+                                    <h3 class="text-lg font-semibold text-slate-800" x-text="detailTaskData.title">
+                                    </h3>
+                                    <p class="text-sm text-slate-500" x-text="`Kode: ${detailTaskData.task_code}`">
+                                    </p>
+                                </div>
+                                <div class="p-6 space-y-6 text-sm">
+                                    {{-- Detail Tugas Utama --}}
+                                    <div class="space-y-4">
+                                        <div class="grid grid-cols-3 gap-4">
+                                            <div>
+                                                <dt class="font-medium text-slate-500">Proyek</dt>
+                                                <dd class="mt-1 text-slate-900"
+                                                    x-text="detailTaskData.system ? detailTaskData.system.name : '-'">
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                <dt class="font-medium text-slate-500">Status</dt>
+                                                <dd class="mt-1 text-slate-900"
+                                                    x-text="detailTaskData.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())">
+                                                </dd>
+                                            </div>
+                                            <div>
+                                                {{--  <dt class="font-medium text-slate-500">Batas Waktu</dt>
                                             <dd class="mt-1 text-slate-900"
                                                 x-text="detailTaskData.due_date ? new Date(detailTaskData.due_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'">
-                                            </dd>
+                                            </dd>  --}}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div>
-                                        <dt class="font-medium text-slate-500">Deskripsi</dt>
-                                        <dd class="mt-1 text-slate-700 whitespace-pre-wrap"
-                                            x-text="detailTaskData.description || 'Tidak ada deskripsi.'"></dd>
-                                    </div>
-
-                                    <template x-if="detailTaskData.attachment_path">
                                         <div>
-                                            <dt class="font-medium text-slate-500">Lampiran</dt>
-                                            <dd class="mt-1">
-                                                <a :href="`/storage/${detailTaskData.attachment_path}`" target="_blank"
-                                                    class="text-indigo-600 hover:underline">Lihat Lampiran</a>
-                                            </dd>
+                                            <dt class="font-medium text-slate-500">Deskripsi</dt>
+                                            <dd class="mt-1 text-slate-700 whitespace-pre-wrap"
+                                                x-text="detailTaskData.description || 'Tidak ada deskripsi.'"></dd>
                                         </div>
-                                    </template>
+
+                                        <template x-if="detailTaskData.attachment_path">
+                                            <div>
+                                                <dt class="font-medium text-slate-500">Lampiran</dt>
+                                                <dd class="mt-1">
+                                                    <a :href="`/storage/${detailTaskData.attachment_path}`"
+                                                        target="_blank" class="text-indigo-600 hover:underline">Lihat
+                                                        Lampiran</a>
+                                                </dd>
+                                            </div>
+                                        </template>
+                                    </div>
+
+                                    {{-- PEMISAH --}}
+                                    <div class="border-t border-slate-200"></div>
+
+                                    {{-- Bukti Pengerjaan (Laporan Commit) --}}
+                                    <div>
+                                        <h4 class="text-base font-semibold text-slate-800 mb-3">Bukti Pengerjaan
+                                            (Laporan
+                                            Commit Terkait)</h4>
+
+                                        <template x-if="detailTaskData.reports && detailTaskData.reports.length > 0">
+                                            <div class="space-y-4">
+                                                {{-- Lakukan looping untuk setiap laporan/commit yang terhubung --}}
+                                                <template x-for="report in detailTaskData.reports"
+                                                    :key="report.id">
+                                                    <div class="border border-slate-200 rounded-lg">
+                                                        {{-- Header Laporan --}}
+                                                        <div class="bg-slate-50 p-3 border-b border-slate-200">
+                                                            <p class="font-semibold text-slate-700"
+                                                                x-text="report.title">
+                                                            </p>
+                                                            <p class="text-xs text-slate-500"
+                                                                x-text="`Dibuat pada: ${new Date(report.created_at).toLocaleString('id-ID')}`">
+                                                            </p>
+                                                        </div>
+                                                        {{-- Body Laporan --}}
+                                                        <div class="p-3 space-y-3">
+                                                            <p class="text-xs text-slate-600 italic"
+                                                                x-text="report.description"></p>
+
+                                                            {{-- Tampilkan Snippets jika ada --}}
+                                                            <template
+                                                                x-if="report.code_snippets && report.code_snippets.length > 0">
+                                                                <div class="space-y-2">
+                                                                    <p class="text-xs font-semibold text-slate-500">
+                                                                        Potongan Kode Penting:</p>
+                                                                    <template x-for="snippet in report.code_snippets"
+                                                                        :key="snippet.id">
+                                                                        <div
+                                                                            class="border border-slate-200 rounded-md">
+                                                                            <p class="text-xs text-slate-500 bg-slate-50 px-2 py-1 border-b"
+                                                                                x-text="snippet.description"></p>
+                                                                            <pre class="text-xs bg-slate-900 text-white p-2 overflow-x-auto"><code x-text="snippet.content"></code></pre>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        {{-- Tampilan jika tidak ada laporan terhubung --}}
+                                        <template
+                                            x-if="!detailTaskData.reports || detailTaskData.reports.length === 0">
+                                            <p class="text-slate-500 text-center py-4">Belum ada commit/laporan
+                                                pengerjaan
+                                                yang terhubung dengan tugas ini.</p>
+                                        </template>
+                                    </div>
                                 </div>
-
-                                {{-- PEMISAH --}}
-                                <div class="border-t border-slate-200"></div>
-
-                                {{-- Bukti Pengerjaan (Laporan Commit) --}}
-                                <div>
-                                    <h4 class="text-base font-semibold text-slate-800 mb-3">Bukti Pengerjaan (Laporan
-                                        Commit Terkait)</h4>
-
-                                    <template x-if="detailTaskData.reports && detailTaskData.reports.length > 0">
-                                        <div class="space-y-4">
-                                            {{-- Lakukan looping untuk setiap laporan/commit yang terhubung --}}
-                                            <template x-for="report in detailTaskData.reports" :key="report.id">
-                                                <div class="border border-slate-200 rounded-lg">
-                                                    {{-- Header Laporan --}}
-                                                    <div class="bg-slate-50 p-3 border-b border-slate-200">
-                                                        <p class="font-semibold text-slate-700" x-text="report.title">
-                                                        </p>
-                                                        <p class="text-xs text-slate-500"
-                                                            x-text="`Dibuat pada: ${new Date(report.created_at).toLocaleString('id-ID')}`">
-                                                        </p>
-                                                    </div>
-                                                    {{-- Body Laporan --}}
-                                                    <div class="p-3 space-y-3">
-                                                        <p class="text-xs text-slate-600 italic"
-                                                            x-text="report.description"></p>
-
-                                                        {{-- Tampilkan Snippets jika ada --}}
-                                                        <template
-                                                            x-if="report.code_snippets && report.code_snippets.length > 0">
-                                                            <div class="space-y-2">
-                                                                <p class="text-xs font-semibold text-slate-500">
-                                                                    Potongan Kode Penting:</p>
-                                                                <template x-for="snippet in report.code_snippets"
-                                                                    :key="snippet.id">
-                                                                    <div class="border border-slate-200 rounded-md">
-                                                                        <p class="text-xs text-slate-500 bg-slate-50 px-2 py-1 border-b"
-                                                                            x-text="snippet.description"></p>
-                                                                        <pre class="text-xs bg-slate-900 text-white p-2 overflow-x-auto"><code x-text="snippet.content"></code></pre>
-                                                                    </div>
-                                                                </template>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-
-                                    {{-- Tampilan jika tidak ada laporan terhubung --}}
-                                    <template x-if="!detailTaskData.reports || detailTaskData.reports.length === 0">
-                                        <p class="text-slate-500 text-center py-4">Belum ada commit/laporan pengerjaan
-                                            yang terhubung dengan tugas ini.</p>
-                                    </template>
+                                <div class="bg-slate-50 px-6 py-4 flex justify-end sticky bottom-0 z-10">
+                                    <button @click="showDetailModal = false" type="button"
+                                        class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Tutup</button>
                                 </div>
                             </div>
-
-                            {{-- Footer Modal --}}
-                            <div class="bg-slate-50 px-6 py-4 flex justify-end sticky bottom-0 z-10">
-                                <button @click="showDetailModal = false" type="button"
-                                    class="rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50">Tutup</button>
-                            </div>
-                        </div>
+                        </template>
                     </div>
                 </div>
             </div>
